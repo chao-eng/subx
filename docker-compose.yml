@@ -1,0 +1,19 @@
+services:
+  subx:
+    build: .
+    container_name: subx
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # 媒体目录
+      - /Movies:/media
+      # 数据目录
+      - subx-db:/app/db
+    environment:
+      - VIDEO_DIR=/media
+      - DB_PATH=/app/db/subx.db
+      - TZ=${TZ:-Asia/Shanghai}
+
+volumes:
+  subx-db:

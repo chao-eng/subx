@@ -1,0 +1,61 @@
+# ================================
+# .dockerignore for SubX
+# 避免将不必要的本地内容复制进 Docker 构建上下文，加快构建速度并减小体积
+# ================================
+
+# ---- Git ----
+.git
+.gitignore
+.gitattributes
+
+# ---- Nuxt 构建产物 & 缓存（builder 阶段会重新生成）----
+.nuxt
+.output
+.nitro
+.data
+.cache
+dist
+
+# ---- Node 依赖（builder 阶段会重新安装）----
+node_modules
+
+# ---- 环境变量文件（不应进入镜像）----
+.env
+.env.*
+
+# ---- 本地运行数据（不需要打入镜像）----
+temp/
+videos/
+demo_db/
+
+# ---- macOS 系统文件 ----
+.DS_Store
+**/.DS_Store
+
+# ---- 编辑器 & IDE ----
+.vscode/
+.idea/
+.fleet/
+*.swp
+*.swo
+
+# ---- 日志文件 ----
+logs/
+*.log
+npm-debug.log*
+
+# ---- 设计系统与 AI Agent 文件（不需要进入镜像）----
+design-system/
+.agent/
+prompt.md
+
+# ---- 文档 ----
+README.md
+README.*.md
+
+# ---- Docker 自身配置（构建时不需要拷贝进去）----
+Dockerfile
+Dockerfile.*
+docker-compose.yml
+docker-compose*.yml
+.dockerignore
