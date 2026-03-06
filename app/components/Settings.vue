@@ -135,7 +135,7 @@
                   <div class="space-y-2 font-mono text-xs">
                     <p class="break-all flex gap-2">
                       <span class="text-gray-400 shrink-0 w-12">URL:</span>
-                      <code class="text-primary-600 dark:text-primary-400">https://ark.volces.com/api/v3</code>
+                      <code class="text-primary-600 dark:text-primary-400">https://ark.cn-beijing.volces.com/api/v3</code>
                     </p>
                     <p class="flex gap-2 text-amber-600 dark:text-amber-400 font-bold">
                       <span class="shrink-0 text-amber-500/50 w-12">MODEL:</span>
