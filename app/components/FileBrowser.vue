@@ -23,10 +23,27 @@
           <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ isSubtitleFile ? '准备直接翻译: ' : '轨道列表: ' }}{{ selectedFile.name }}</h3>
         </div>
 
-        <div v-if="isSubtitleFile" class="flex flex-col items-center justify-center p-8 bg-sky-50 dark:bg-sky-900/20 rounded-xl text-center flex-1 mb-4">
-          <UIcon name="i-lucide-languages" class="w-8 h-8 text-sky-500 mb-2" />
-          <p class="text-sm text-sky-700 dark:text-sky-300 font-medium">已选择字幕文件</p>
-          <p class="text-xs text-sky-600/70 dark:text-sky-400 mt-1">无需轨道分离，直接提交即可开始多线程翻译任务</p>
+        <div v-if="isSubtitleFile" class="flex-1 flex flex-col min-h-0 mb-4 bg-gray-50/50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-800 p-3">
+          <div v-if="pendingSubtitle" class="flex flex-col items-center justify-center flex-1">
+             <UIcon name="i-lucide-loader-2" class="w-6 h-6 animate-spin text-sky-500 mb-2" />
+             <p class="text-xs text-neutral-500">正在读取字幕内容...</p>
+          </div>
+          <div v-else-if="subtitlePreview.length" class="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+            <div v-for="entry in subtitlePreview" :key="entry.id" class="p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/50 shadow-sm">
+                <div class="flex items-center justify-between mb-1">
+                   <span class="text-[10px] font-mono text-sky-500 bg-sky-50 dark:bg-sky-950 px-1.5 py-0.5 rounded leading-none">{{ entry.startTime }}</span>
+                   <span class="text-[9px] text-neutral-400">#{{ entry.id }}</span>
+                </div>
+                <p class="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">{{ entry.text }}</p>
+            </div>
+            <div v-if="totalSubtitleEntries > subtitlePreview.length" class="py-2 text-center">
+               <p class="text-xs text-neutral-400 italic">共 {{ totalSubtitleEntries }} 条，仅显示前 50 条预览</p>
+            </div>
+          </div>
+          <div v-else class="flex flex-col items-center justify-center flex-1 text-center">
+            <UIcon name="i-lucide-file-warning" class="w-8 h-8 text-neutral-300 mb-2" />
+            <p class="text-xs text-neutral-500">无法读取该字幕文件内容</p>
+          </div>
         </div>
 
         <template v-else>
@@ -87,6 +104,9 @@ async function refreshFiles() {
 const toast = useToast()
 const tracks = ref([])
 const pendingTracks = ref(false)
+const subtitlePreview = ref([])
+const pendingSubtitle = ref(false)
+const totalSubtitleEntries = ref(0)
 const selectedTrackIndex = ref(null)
 const launching = ref(false)
 
@@ -115,24 +135,35 @@ const trackOptions = computed(() => {
 const isSubtitleFile = computed(() => {
   if (!selectedFile.value) return false
   const name = selectedFile.value.name.toLowerCase()
-  return name.endsWith('.srt') || name.endsWith('.vtt')
+  return name.endsWith('.srt') || name.endsWith('.vtt') || name.endsWith('.ass') || name.endsWith('.ssa')
 })
 
 async function onSelect(node) {
   if (node.isDir) return
   
   const ext = node.name.toLowerCase()
-  if (!ext.endsWith('.mkv') && !ext.endsWith('.srt') && !ext.endsWith('.vtt')) {
-    toast.add({ title: '格式不支持', description: '目前视频仅支持 .mkv 格式，或直接选择 .srt / .vtt 字幕文件。', color: 'amber' })
+  if (!ext.endsWith('.mkv') && !ext.endsWith('.srt') && !ext.endsWith('.vtt') && !ext.endsWith('.ass') && !ext.endsWith('.ssa')) {
+    toast.add({ title: '格式不支持', description: '目前视频仅支持 .mkv 格式，或直接选择 .srt / .vtt / .ass / .ssa 字幕文件。', color: 'amber' })
     return
   }
 
   selectedFile.value = node
   tracks.value = []
+  subtitlePreview.value = []
   
   if (isSubtitleFile.value) {
     selectedTrackIndex.value = 0
-    return // Stop checking for tracks in text files
+    pendingSubtitle.value = true
+    try {
+      const res = await $fetch('/api/subtitle-content', { query: { path: node.path } })
+      subtitlePreview.value = res.entries
+      totalSubtitleEntries.value = res.total
+    } catch (e) {
+      console.error('Failed to load subtitle content', e)
+    } finally {
+      pendingSubtitle.value = false
+    }
+    return
   }
 
   pendingTracks.value = true

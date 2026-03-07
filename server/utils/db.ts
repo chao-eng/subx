@@ -62,6 +62,18 @@ export function useDb() {
       raw_response TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS auth (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      passkey_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      expires_at TEXT NOT NULL
+    );
   `)
 
   // Safe migration: add style_preset column to existing databases

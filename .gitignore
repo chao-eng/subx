@@ -27,3 +27,5 @@ videos
 demo_db
 temp
 release.sh
+.vscode
+yarn.lock

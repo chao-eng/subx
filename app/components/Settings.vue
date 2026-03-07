@@ -1,5 +1,13 @@
 <template>
   <div class="space-y-6">
+    <!-- Insecure Connection Warning -->
+    <div v-if="isInsecure" class="p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/20 flex items-start gap-3 animate-pulse">
+      <UIcon name="i-lucide-shield-alert" class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+      <div class="space-y-1">
+        <p class="text-xs font-bold text-amber-700 dark:text-amber-400">连接不安全</p>
+        <p class="text-[10px] text-amber-600 dark:text-amber-500/80 leading-relaxed">检测到当前正在通过非 HTTPS 连接访问。您的 API 密钥在传输过程中可能存在泄露风险，建议启用 SSL 加密。</p>
+      </div>
+    </div>
     <!-- Top Row: API Key with Help Button -->
     <div class="space-y-1">
       <div class="flex items-center justify-between">
@@ -215,6 +223,10 @@ const toast = useToast()
 const modelItems = ref([])
 const fetchingModels = ref(false)
 const modelError = ref('')
+const isInsecure = computed(() => {
+  if (!import.meta.client) return false
+  return window.location.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(window.location.hostname)
+})
 
 // Auto-fetch models on mount if credentials are already configured
 onMounted(() => {

@@ -1,8 +1,8 @@
 import { readdirSync, statSync } from 'fs'
 import { join, relative } from 'path'
-import type { FileNode } from '~/types'
+import type { FileNode } from '~~/types'
 
-const SUPPORTED_EXTENSIONS = ['.mkv', '.mp4', '.avi', '.webm', '.ts', '.srt', '.ass', '.vtt']
+const SUPPORTED_EXTENSIONS = ['.mkv', '.mp4', '.avi', '.webm', '.ts', '.srt', '.ass', '.ssa', '.vtt']
 
 export default defineEventHandler(async () => {
     const videoDir = process.env.VIDEO_DIR || '/data'

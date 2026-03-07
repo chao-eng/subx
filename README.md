@@ -1,109 +1,86 @@
-# SubX - Automated Video Subtitle Extraction & Translation Tool
+# SubX
 
-SubX is a powerful tool designed for local or private cloud environments to automate the workflow of extracting and translating video subtitles. It leverages Large Language Models (LLMs) to provide high-quality, context-aware translations for your media library.
+SubX 是一款专为本地/私有云环境设计的 **AI 自动化视频字幕提取与翻译工具**。
 
----
-
-## 🌟 Key Features
-
-- **Zero Upload**: Process large video files directly from your host or NAS via Docker volume mounts.
-- **Smart Track Detection**: Automatically detects and extracts embedded subtitle tracks from containers like MKV, MP4, AVI, etc.
-- **External Subtitle Support**: Directly translate standalone `.srt`, `.ass`, `.vtt` files.
-- **Context-Aware Translation**: Uses LLMs with sliding context windows to ensure narrative consistency across subtitle chunks.
-- **Glossary Management**: Maintain consistent translations for character names and specific terminology.
-- **Bilingual Output**: Support for pure translated text or "Original + Translation" dual-language subtitles.
-- **Real-time Monitoring**: Modern Web UI with live task progress updates via Server-Sent Events (SSE).
-
-## 🚀 Quick Start
-
-### 🐳 Using Docker (Recommended)
-
-The easiest way to run SubX is via Docker Compose.
-
-```yaml
-services:
-  subx:
-    image: bujic/subx:latest
-    container_name: subx
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    volumes:
-      - /path/to/your/movies:/media
-      - subx-db:/app/db
-    environment:
-      - VIDEO_DIR=/media
-      - DB_PATH=/app/db/subx.db
-      - TZ=Asia/Shanghai
-
-volumes:
-  subx-db:
-```
-
-1. Run `docker-compose up -d`.
-2. Access the UI at `http://localhost:3000`.
-3. Configure your API Key and Model settings in the dashboard.
-
-### 💻 Local Development
-
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
+它能够自动探测您的本地媒体库，提取视频流中嵌入的所有音轨与字幕轨道，并利用尖端的大语言模型（LLM）进行上下文感知的精准翻译。无论是美剧、动画还是纪录片，SubX 都能为您提供专业级的翻译工作流。
 
 ---
 
-## 🛠️ Technology Stack
+## 🌟 核心特性
 
-- **Frontend/Framework**: Nuxt 4, Nuxt UI (Tailwind CSS)
-- **Runtime**: Node.js (Nitro engine)
-- **Database**: SQLite (via `better-sqlite3`)
-- **Processing**: FFmpeg (via `fluent-ffmpeg`)
-- **AI Integration**: OpenAI SDK (compatible with any OpenAI-style API)
+- **🚀 极速解析与提取**：集成 `FFmpeg` 强力驱动，毫秒级探测视频元数据，秒级提取内嵌字幕轨道。
+- **🎬 全面格式支持**：支持嵌入式字幕提取以及 `.srt`、`.ass`、`.vtt`、`.ssa` 等多种主流外挂字幕格式的读取与翻译。
+- **👁️ 字幕实时预览**：在翻译前即可在 Web 界面预览字幕内容，支持 ASS 特殊换行符（如 `\N`）的正确渲染。
+- **🧠 语境感知翻译**：利用 LLM 的超长上下文窗口进行分块翻译，确保角色称呼、剧情逻辑在全篇中高度连贯。
+- **💎 极致 UI/UX 体验**：采用现代化的 **玻璃拟态（Glassmorphism）** 设计，支持深色/浅色模式切换，配备动态流光背景，提供沉浸式操作体验。
+- **🛡️ 银行级安全架构**：
+  - **基于口令的快速身份验证**：无需繁琐的用户名，仅凭口令即可全权管控。
+  - **端到端加密传输**：客户端本地 SHA-256 预哈希，确保口令明文永不离开您的设备。
+  - **服务端二次加固**：存储层与逻辑层双重哈希防护，保障实例安全。
+- **📦 Docker 原生支持**：专为 NAS（群晖、铁威马等）和云服务器优化，通过目录挂载即可实现“零上传”处理大容量影视库。
 
 ---
 
-# SubX - 中文文档说明
+## 🛠️ 技术栈
 
-SubX 是一款专为本地/私有云环境设计的 **自动化视频字幕提取与翻译工具**。它主要解决观看无官方中文字幕的视频时，手动寻找、提取和翻译字幕流程繁琐的问题。
+- **前端框架**：Nuxt 4 (Vue 3 + Nitro)
+- **UI 组件库**：Nuxt UI (基于 Tailwind CSS)
+- **数据库**：SQLite (通过 `better-sqlite3` 驱动)
+- **媒体处理**：FFmpeg (通过 `fluent-ffmpeg`)
+- **安全算法**：浏览器原生 Crypto API + Node.js Crypto
 
-## 🇨🇳 核心特性
+---
 
-- **零上传**：通过 Docker 目录挂载直接读取宿主机/NAS 上的视频，避免上传大文件。
-- **智能解析**：自动探测视频内嵌的所有字幕轨道，支持一键提取。
-- **外挂支持**：不仅支持内嵌字幕，也能直接翻译 `.srt` / `.ass` 等外挂文件。
-- **上下文翻译**：利用大语言模型（LLM）进行分块翻译，保留剧情连贯性。
-- **术语表**：支持自定义角色名、专有名词，确保全片翻译一致性。
-- **双语输出**：支持生成纯译文或“原文+译文”对照字幕。
-- **状态可视化**：实时推送长耗时翻译任务的进度。
+## 📥 安装与部署
 
-## 📥 安装部署
-
-### 🐳 Docker 部署（推荐）
+### 🐳 使用 Docker (推荐)
 
 在您的 `docker-compose.yml` 中添加以下配置：
 
 ```yaml
 services:
   subx:
-    image: bujic/subx:latest
+    image: bujidec/subx:latest
     container_name: subx
     restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
-      - /您的视频路径:/media
-      - subx-db:/app/db
+      - /path/to/your/movies:/media
+      - ./db:/app/db
     environment:
       - VIDEO_DIR=/media
       - DB_PATH=/app/db/subx.db
+      - TZ=Asia/Shanghai
 ```
 
-运行 `docker-compose up -d` 后，通过浏览器访问 `http://localhost:3000` 即可使用。
+### 💻 本地开发环境
 
-### 📜 许可证
+1. **环境准备**：确保系统中已安装 `Node.js` (建议 v18+) 和 `FFmpeg`。
+2. **配置环境变量**：在项目根目录创建 `.env` 文件：
+   ```env
+   VIDEO_DIR=D:\Path\To\Your\Videos
+   FFMPEG_PATH=C:\ffmpeg\bin\ffmpeg.exe
+   FFPROBE_PATH=C:\ffmpeg\bin\ffprobe.exe
+   ```
+3. **启动项目**：
+   ```bash
+   # 安装依赖
+   yarn install
+   # 启动开发服务器
+   yarn dev
+   ```
 
-本项目采用 MIT 许可证。
+---
+
+## 🔐 初始设置说明
+
+1. **首次启动**：项目启动后会自动进入“初始化口令密钥”页面，引导您设置访问口令。
+2. **访问保护**：设置完成后，任何对 API 或页面的访问都必须经过口令验证。
+3. **会话管理**：登录状态支持 Web 持久化，无需频繁输入口令。
+
+---
+
+## 📜 许可证
+
+本项目采用 **MIT** 许可证，您可以自由地进行二次开发与分发。
