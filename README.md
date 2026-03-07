@@ -59,16 +59,21 @@ services:
 1. **环境准备**：确保系统中已安装 `Node.js` (建议 v18+) 和 `FFmpeg`。
 2. **配置环境变量**：在项目根目录创建 `.env` 文件：
    ```env
+   # [必填] 视频挂载目录，程序会扫描此目录下的视频和字幕文件
    VIDEO_DIR=D:\Path\To\Your\Videos
+   # [可选] SQLite 数据库存储路径
+   DB_PATH=./demo_db/subx.db
+   # 默认值: ./db/subx.db
+   # [可选] win 需要显式配置FFmpeg 路径
    FFMPEG_PATH=C:\ffmpeg\bin\ffmpeg.exe
    FFPROBE_PATH=C:\ffmpeg\bin\ffprobe.exe
    ```
 3. **启动项目**：
    ```bash
    # 安装依赖
-   yarn install
+   nom install
    # 启动开发服务器
-   yarn dev
+   nom dev
    ```
 
 ---
