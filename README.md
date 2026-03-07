@@ -71,9 +71,9 @@ services:
 3. **启动项目**：
    ```bash
    # 安装依赖
-   nom install
+   npm install
    # 启动开发服务器
-   nom dev
+   npm dev
    ```
 
 ---
