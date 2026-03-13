@@ -12,7 +12,18 @@ RUN apk add --no-cache --virtual .build-deps \
 
 # 为了使用 npm ci 或 npm install 安装
 COPY package.json package-lock.json* ./
-RUN npm install
+
+# 优化针对 QEMU 模拟环境的安装逻辑
+# 1. 设置超时以防网络抖动导致 QEMU 进程挂起
+# 2. 禁用 audit 和 fund 减少不必要的进程分发
+# 3. 强制原生模块（better-sqlite3）从源码编译以规避预编译二进制指令不兼容问题
+RUN npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm config set audit false && \
+    npm config set fund false && \
+    npm install --build-from-source better-sqlite3 && \
+    npm install
 
 COPY . .
 RUN npm run build
