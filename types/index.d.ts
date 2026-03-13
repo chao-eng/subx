@@ -81,3 +81,11 @@ export interface ProgressUpdate {
   totalChunks?: number
   currentText?: string
 }
+
+declare module 'js-sha256' {
+  export function sha256(message: any): string;
+  export namespace sha256 {
+    export function sha256(message: any): string;
+    export function sha224(message: any): string;
+  }
+}

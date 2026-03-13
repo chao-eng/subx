@@ -19,13 +19,15 @@
       </div>
 
       <!-- Insecure Connection Warning -->
-      <div v-if="isInsecure" class="mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/20 flex items-start gap-3 animate-pulse">
-        <UIcon name="i-lucide-shield-alert" class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-        <div class="space-y-1">
-          <p class="text-xs font-bold text-amber-700 dark:text-amber-400">连接不安全</p>
-          <p class="text-[10px] text-amber-600 dark:text-amber-500/80 leading-relaxed">检测到当前正在通过非 HTTPS 连接访问。为了您的密钥安全，建议在生产环境启用 SSL 加密。</p>
+      <ClientOnly>
+        <div v-if="isInsecure" class="mb-6 p-4 rounded-2xl bg-amber-50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/20 flex items-start gap-3 animate-pulse">
+          <UIcon name="i-lucide-shield-alert" class="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <div class="space-y-1">
+            <p class="text-xs font-bold text-amber-700 dark:text-amber-400">连接不安全</p>
+            <p class="text-[10px] text-amber-600 dark:text-amber-500/80 leading-relaxed">检测到当前正在通过非 HTTPS 连接访问。为了您的密钥安全，建议在生产环境启用 SSL 加密。</p>
+          </div>
         </div>
-      </div>
+      </ClientOnly>
 
       <!-- Main Card -->
       <div class="glass-panel border-white/40 dark:border-white/5 rounded-[2rem] p-8 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.12)] backdrop-blur-2xl">
@@ -175,9 +177,12 @@ const confirmPasskey = ref('')
 const showPasskey = ref(false)
 const loading = ref(false)
 const error = ref('')
-const isInsecure = computed(() => {
-  if (!import.meta.client) return false
-  return window.location.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(window.location.hostname)
+const isInsecure = ref(false)
+
+onMounted(() => {
+  if (window.location.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
+    isInsecure.value = true
+  }
 })
 
 // 进入页面时检查状态
