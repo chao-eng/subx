@@ -13,6 +13,41 @@ import type { TranslationTask, SubtitleEntry, TaskStatus } from '~~/types'
 
 export const taskEvents = new EventEmitter()
 
+class TaskQueue {
+    private queue: { taskId: string, openaiConfig: any, resolve: (value: void) => void, reject: (reason: any) => void }[] = [];
+    private active = 0;
+
+    async add(taskId: string, openaiConfig: any): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this.queue.push({ taskId, openaiConfig, resolve, reject });
+            this.next();
+        });
+    }
+
+    private async next() {
+        // Read the latest concurrency setting every time we try to start a new task
+        const config = await ConfigService.getConfig();
+        const concurrency = Math.max(1, Number(config.concurrency) || 3);
+
+        while (this.active < concurrency && this.queue.length > 0) {
+            const taskArgs = this.queue.shift();
+            if (taskArgs) {
+                this.active++;
+                // Start processing without awaiting it here, let it run
+                TaskService.process(taskArgs.taskId, taskArgs.openaiConfig)
+                    .then(taskArgs.resolve)
+                    .catch(taskArgs.reject)
+                    .finally(() => {
+                        this.active--;
+                        this.next();
+                    });
+            }
+        }
+    }
+}
+
+export const globalTaskQueue = new TaskQueue()
+
 export const TaskService = {
     /**
      * Create new task in database
@@ -115,7 +150,8 @@ export const TaskService = {
             await this.updateStatus(taskId, 'translating', 30, { totalChunks, completedChunks: 0 })
 
             const openai = new OpenAI({ apiKey: openaiConfig.apiKey, baseURL: openaiConfig.baseUrl })
-            const limit = pLimit(3) // 3 parallel translation tasks
+            const chunkLimit = Math.max(1, config.concurrency || 3)
+            const limit = pLimit(chunkLimit) // use dynamically configured chunk concurrency
 
             let completedChunks = 0
             const translatedEntries: SubtitleEntry[] = []

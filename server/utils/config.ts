@@ -25,6 +25,8 @@ export const ConfigService = {
         rows.forEach(row => {
             if (row.key === 'glossary') {
                 config.glossary = JSON.parse(row.value)
+            } else if (['chunkSize', 'concurrency', 'maxRetries'].includes(row.key)) {
+                (config as any)[row.key] = Number(row.value)
             } else {
                 (config as any)[row.key] = row.value
             }

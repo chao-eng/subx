@@ -71,6 +71,7 @@ export interface TrackInfo {
   codec: string
   language?: string
   title?: string
+  isSupported?: boolean
 }
 
 /** SSE 进度更新数据 */

@@ -2,6 +2,8 @@ import ffmpeg from 'fluent-ffmpeg'
 import { join } from 'path'
 import type { TrackInfo } from '../../types'
 
+const SUPPORTED_TEXT_CODECS = ['subrip', 'srt', 'ass', 'ssa', 'webvtt', 'mov_text']
+
 // 针对 Windows 环境下可能找不到 ffprobe 的情况进行配置
 // 如果环境变量中没有设置，尝试默认路径
 if (process.platform === 'win32') {
@@ -36,7 +38,8 @@ export const VideoService = {
                     index: s.index ?? 0,
                     codec: s.codec_name ?? 'unknown',
                     language: s.tags?.language ?? 'und',
-                    title: s.tags?.title ?? ''
+                    title: s.tags?.title ?? '',
+                    isSupported: SUPPORTED_TEXT_CODECS.includes(s.codec_name ?? '')
                 }))
 
                 resolve(tracks)

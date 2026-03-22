@@ -78,7 +78,10 @@
           <UFormField label="输出模式">
              <USelect v-model="options.outputMode" :items="[{ label: '仅显示翻译', value: 'translated' }, { label: '双语对照', value: 'bilingual' }]" />
           </UFormField>
-          <UButton label="开始 AI 翻译" color="primary" block icon="i-lucide-sparkles" :loading="launching" @click="startTask" />
+          <div class="flex gap-3 mt-4">
+             <UButton label="加入队列" color="neutral" variant="outline" class="flex-1 justify-center" icon="i-lucide-list-plus" :loading="launching" @click="startTask(true)" />
+             <UButton label="开始 AI 翻译" color="primary" class="flex-1 justify-center" icon="i-lucide-sparkles" :loading="launching" @click="startTask(false)" />
+          </div>
         </div>
       </div>
 
@@ -127,8 +130,9 @@ const currentStyle = computed(() => STYLE_PRESETS.find(s => s.id === options.val
 
 const trackOptions = computed(() => {
   return tracks.value.map(t => ({
-    label: `轨道 #${t.index} (${t.codec}) - ${t.language} ${t.title ? `[${t.title}]` : ''}`,
-    value: t.index
+    label: `轨道 #${t.index} (${t.codec}) - ${t.language} ${t.title ? `[${t.title}]` : ''}${!t.isSupported ? ' [全图像字幕/格式不支持]' : ''}`,
+    value: t.index,
+    disabled: !t.isSupported
   }))
 })
 
@@ -171,7 +175,12 @@ async function onSelect(node) {
   try {
     const res = await $fetch('/api/tracks', { query: { path: node.path } })
     tracks.value = res.tracks
-    if (tracks.value.length) selectedTrackIndex.value = tracks.value[0].index
+    const firstSupported = tracks.value.find(t => t.isSupported)
+    if (firstSupported) {
+      selectedTrackIndex.value = firstSupported.index
+    } else {
+      selectedTrackIndex.value = null
+    }
   } catch (e) {
     toast.add({ title: '错误', description: '无法分析视频轨道', color: 'danger' })
   } finally {
@@ -179,8 +188,8 @@ async function onSelect(node) {
   }
 }
 
-async function startTask() {
-  if (selectedTrackIndex.value === null) return
+async function startTask(silent = false) {
+  if (selectedTrackIndex.value === null && !isSubtitleFile.value) return
   launching.value = true
   try {
     const res = await $fetch('/api/task', {
@@ -192,9 +201,14 @@ async function startTask() {
         ...options.value
       }
     })
-    toast.add({ title: '成功', description: '任务已提交', color: 'success' })
-    // Refresh page or switch view
-    navigateTo(`/task/${res.taskId}`)
+    toast.add({ title: '成功', description: '任务已提交到队列', color: 'success' })
+    if (silent) {
+      selectedFile.value = null
+      tracks.value = []
+      subtitlePreview.value = []
+    } else {
+      navigateTo(`/task/${res.taskId}`)
+    }
   } catch (e) {
     toast.add({ title: '错误', description: '无法开始翻译任务', color: 'danger' })
   } finally {
