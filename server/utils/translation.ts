@@ -1,7 +1,7 @@
 import OpenAI from 'openai'
 import type { SubtitleEntry } from '../../types'
 import { useDb } from './db'
-import { appendFileSync, existsSync, readFileSync, rmSync } from 'fs'
+import { appendFileSync, existsSync, readFileSync, rmSync, mkdirSync } from 'fs'
 import { join } from 'path'
 
 interface StreamCallbacks {
@@ -20,10 +20,11 @@ function buildTranslationPrompt(
     return `你是专业影视字幕翻译。将以下字幕逐条翻译为地道的${targetLanguage}。
 ${styleBlock}
 输出格式（严格遵守！）：
-- 每条翻译占两行：第一行是序号（纯数字），第二行是翻译文本
+- 每条翻译占两行：第一行是序号（纯数字，必须与输入序号完全一致），第二行是翻译文本
 - 条目之间用一个空行分隔
-- 条目顺序必须与输入完全一致，不能增减
+- 条目顺序必须与输入完全一致，不能增减任何条目
 - 不要输出任何其他内容（不要 markdown、不要解释、不要编号前缀）
+- 即使某条原文很短或无意义，也必须输出对应序号和翻译
 
 影视字幕翻译规范（极其重要！）：
 1.【单行长度限制】单行字幕尽量简短，中文字符建议不超过 15-18 个。如果原文长句，请根据语义和呼吸停顿点进行换行（在译文适当位置插入 \\n）。
@@ -54,9 +55,7 @@ function parseStreamedTranslations(fullContent: string): Map<string, string> {
         if (!idLine || !/^\d+$/.test(idLine)) continue
 
         const translatedText = lines.slice(1).join('\n').trim()
-        if (translatedText) {
-            result.set(idLine, translatedText)
-        }
+        result.set(idLine, translatedText || '')
     }
 
     return result
@@ -94,6 +93,13 @@ export const TranslationService = {
             ? join(process.cwd(), 'temp', `${taskId}.chunk-${chunkIndex ?? 0}.partial`)
             : null
 
+        if (partialPath) {
+            const partialDir = join(partialPath, '..')
+            if (!existsSync(partialDir)) {
+                mkdirSync(partialDir, { recursive: true })
+            }
+        }
+
         let fullContent = ''
         let lastParsedIndex = 0
 
@@ -103,7 +109,7 @@ export const TranslationService = {
                 messages: [
                     {
                         role: 'system',
-                        content: `你是高级字幕翻译专家。按指定格式逐条输出翻译，不要输出任何额外内容。${stylePrompt ? ' ' + stylePrompt : ''}`
+                        content: `你是高级字幕翻译专家。按指定格式逐条输出翻译，不要输出任何额外内容。每条输入都必须有对应的翻译输出，序号必须与输入完全一致。${stylePrompt ? ' ' + stylePrompt : ''}`
                     },
                     { role: 'user', content: prompt }
                 ],
@@ -175,14 +181,31 @@ export const TranslationService = {
 
         if (translatedMap.size === 0) {
             console.warn(`[Parser] 警告: 解析出的翻译条目为空! 原始内容长度: ${fullContent.length}`)
+            if (fullContent.length > 0) {
+                console.warn(`[Parser] 原始内容前200字符: ${fullContent.substring(0, 200)}`)
+            }
         } else if (translatedMap.size !== chunk.length) {
             console.warn(`[Parser] 警告: 翻译条目数 (${translatedMap.size}) 与原始条目数 (${chunk.length}) 不一致`)
+            const missingIds = chunk.map(e => String(e.id)).filter(id => !translatedMap.has(id))
+            if (missingIds.length > 0 && missingIds.length <= 20) {
+                console.warn(`[Parser] 缺失的条目ID: ${missingIds.join(', ')}`)
+            }
         }
 
-        return chunk.map((entry) => ({
-            ...entry,
-            translatedText: translatedMap.get(String(entry.id)) || entry.text
-        }))
+        const result = chunk.map((entry) => {
+            const translated = translatedMap.get(String(entry.id))
+            return {
+                ...entry,
+                translatedText: translated !== undefined ? translated : entry.text
+            }
+        })
+
+        const translatedCount = result.filter(e => e.translatedText && e.translatedText !== e.text).length
+        if (translatedCount === 0 && chunk.length > 0) {
+            throw new Error(`翻译结果为空: chunk ${chunkIndex} 包含 ${chunk.length} 条目但无有效翻译 (AI返回 ${fullContent.length} bytes)`)
+        }
+
+        return result
     },
 
     parseNewEntries(buffer: string, startIndex: number, chunk: SubtitleEntry[]): { id: string; translatedText: string }[] {
@@ -202,9 +225,7 @@ export const TranslationService = {
             if (!chunkIds.has(idLine)) continue
 
             const translatedText = lines.slice(1).join('\n').trim()
-            if (translatedText) {
-                entries.push({ id: idLine, translatedText })
-            }
+            entries.push({ id: idLine, translatedText: translatedText || '' })
         }
 
         return entries

@@ -200,7 +200,7 @@ export const TaskService = {
                     })
                     : []
 
-                const uncachedChunk: SubtitleEntry[] = []
+                const uncachedEntries: SubtitleEntry[] = []
                 const cachedResults = new Map<string, string>()
 
                 for (const entry of chunk) {
@@ -210,39 +210,64 @@ export const TaskService = {
                     if (cached) {
                         cachedResults.set(String(entry.id), cached)
                     } else {
-                        uncachedChunk.push(entry)
+                        uncachedEntries.push(entry)
                     }
                 }
 
-                if (uncachedChunk.length < chunk.length) {
-                    console.log(`[Cache] Chunk ${index}: ${chunk.length - uncachedChunk.length}/${chunk.length} entries from cache`)
+                if (uncachedEntries.length < chunk.length) {
+                    console.log(`[Cache] Chunk ${index}: ${chunk.length - uncachedEntries.length}/${chunk.length} entries from cache`)
                 }
 
                 let translatedChunk: SubtitleEntry[]
 
-                if (uncachedChunk.length === 0) {
+                if (uncachedEntries.length === 0) {
                     translatedChunk = chunk.map(entry => ({
                         ...entry,
                         translatedText: cachedResults.get(String(entry.id)) || entry.text
                     }))
                 } else {
+                    const idMapping = new Map<string, string>()
+                    const remappedChunk: SubtitleEntry[] = uncachedEntries.map((entry, i) => {
+                        const sequentialId = String(i + 1)
+                        idMapping.set(sequentialId, String(entry.id))
+                        return { ...entry, id: sequentialId }
+                    })
+
                     const aiResults = await translateChunkWithRetry(
-                        openai, uncachedChunk, task.targetLanguage, glossary, previousContext,
+                        openai, remappedChunk, task.targetLanguage, glossary, previousContext,
                         task.model, taskId, index, stylePrompt, maxRetries,
                         {
                             onEntryTranslated: (entry) => {
-                                translatedMap.set(String(entry.id), {
-                                    ...uncachedChunk.find(e => String(e.id) === String(entry.id))!,
-                                    translatedText: entry.translatedText
-                                })
+                                const originalId = idMapping.get(String(entry.id))
+                                if (originalId) {
+                                    const originalEntry = uncachedEntries.find(e => String(e.id) === originalId)
+                                    if (originalEntry) {
+                                        translatedMap.set(originalId, {
+                                            ...originalEntry,
+                                            translatedText: entry.translatedText
+                                        })
+                                    }
+                                }
                             }
                         }
                     )
 
+                    const aiResultByOriginalId = new Map<string, SubtitleEntry>()
                     for (const entry of aiResults) {
-                        if (entry.translatedText && entry.translatedText !== entry.text) {
-                            const cacheHash = SubtitleService.computeCacheHash(entry.text, task.model, task.targetLanguage)
-                            SubtitleService.setCachedTranslation(cacheHash, entry.text, entry.translatedText, task.model, task.targetLanguage)
+                        const originalId = idMapping.get(String(entry.id))
+                        if (originalId) {
+                            const originalEntry = uncachedEntries.find(e => String(e.id) === originalId)
+                            const restoredEntry: SubtitleEntry = {
+                                ...originalEntry!,
+                                id: originalId,
+                                translatedText: entry.translatedText
+                            }
+                            aiResultByOriginalId.set(originalId, restoredEntry)
+
+                            if (entry.translatedText && entry.translatedText !== entry.text) {
+                                const cacheHash = SubtitleService.computeCacheHash(originalEntry!.text, task.model, task.targetLanguage)
+                                SubtitleService.setCachedTranslation(cacheHash, originalEntry!.text, entry.translatedText, task.model, task.targetLanguage)
+                            }
                         }
                     }
 
@@ -251,7 +276,7 @@ export const TaskService = {
                         if (cachedText) {
                             return { ...entry, translatedText: cachedText }
                         }
-                        const aiResult = aiResults.find(t => String(t.id) === String(entry.id))
+                        const aiResult = aiResultByOriginalId.get(String(entry.id))
                         return aiResult || entry
                     })
                 }
