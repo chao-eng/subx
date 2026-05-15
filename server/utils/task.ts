@@ -57,14 +57,15 @@ async function translateChunkWithRetry(
     chunkIndex: number,
     stylePrompt: string,
     maxRetries: number,
-    callbacks?: { onEntryTranslated?: (entry: { id: string; translatedText: string }) => void }
+    callbacks?: { onEntryTranslated?: (entry: { id: string; translatedText: string }) => void },
+    streamUsage: boolean = false
 ): Promise<SubtitleEntry[]> {
     let lastError: Error | null = null
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
             return await TranslationService.translateChunk(
-                openai, chunk, targetLanguage, glossary, previousContext, model, taskId, chunkIndex, stylePrompt, callbacks
+                openai, chunk, targetLanguage, glossary, previousContext, model, taskId, chunkIndex, stylePrompt, callbacks, streamUsage
             )
         } catch (e: any) {
             lastError = e
@@ -122,6 +123,7 @@ export const TaskService = {
     },
 
     async process(taskId: string, openaiConfig: { apiKey: string, baseUrl?: string }) {
+        await ConfigService.cleanupLogs()
         const task = this.getTask(taskId)
         const videoDir = process.env.VIDEO_DIR || '/data'
         const tempDir = join(process.cwd(), 'temp')
@@ -262,7 +264,8 @@ export const TaskService = {
                                     }
                                 }
                             }
-                        }
+                        },
+                        config.streamUsage || false
                     )
 
                     const aiResultByOriginalId = new Map<string, SubtitleEntry>()

@@ -47,13 +47,24 @@ ${inputLines}`
 
 function parseStreamedTranslations(fullContent: string): Map<string, string> {
     const result = new Map<string, string>()
-    const blocks = fullContent.split(/\n\s*\n/)
+    // 兼容多种换行符和分隔符
+    const blocks = fullContent.split(/\n\s*\n|\n(?=\d+[\n:.])/)
 
     for (const block of blocks) {
         const lines = block.trim().split('\n')
-        if (lines.length < 2) continue
+        if (lines.length < 2) {
+            // 尝试处理单行格式，例如 "121. 翻译内容" 或 "121: 翻译内容"
+            const singleLineMatch = block.trim().match(/^(\d+)[.:：\s]+(.+)$/)
+            if (singleLineMatch) {
+                result.set(singleLineMatch[1], singleLineMatch[2].trim())
+            }
+            continue
+        }
 
-        const idLine = lines[0]?.trim()
+        let idLine = lines[0]?.trim()
+        // 去除可能的序号后缀，如 "121." -> "121"
+        idLine = idLine.replace(/[.:：]$/, '')
+        
         if (!idLine || !/^\d+$/.test(idLine)) continue
 
         const translatedText = lines.slice(1).join('\n').trim()
@@ -74,7 +85,8 @@ export const TranslationService = {
         taskId?: string,
         chunkIndex?: number,
         stylePrompt?: string,
-        callbacks?: StreamCallbacks
+        callbacks?: StreamCallbacks,
+        streamUsage: boolean = false
     ): Promise<SubtitleEntry[]> {
         const glossaryText = Object.entries(glossary)
             .map(([key, value]) => `${key} -> ${value}`)
@@ -102,6 +114,12 @@ export const TranslationService = {
             }
         }
 
+        const logDir = join(process.cwd(), 'temp', 'ai-logs')
+        if (!existsSync(logDir)) mkdirSync(logDir, { recursive: true })
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+        const logFile = join(logDir, `task_${taskId || 'unknown'}_chunk_${chunkIndex ?? 0}_${timestamp}.log`)
+
         let fullContent = ''
         let lastParsedIndex = 0
 
@@ -115,19 +133,29 @@ export const TranslationService = {
                     { role: 'user', content: prompt }
                 ]
 
-            const rawRequest = JSON.stringify({
-                model,
-                targetLanguage,
-                chunkSize: chunk.length,
-                chunkIds: chunk.map(e => e.id),
-                messages
-            })
+            // 写入初始日志
+            const initialLog = `=== TASK INFO ===
+Task ID: ${taskId}
+Chunk: ${chunkIndex}
+Model: ${model}
+Target: ${targetLanguage}
+Timestamp: ${new Date().toISOString()}
+
+=== SYSTEM MESSAGE ===
+${systemMessage}
+
+=== USER PROMPT ===
+${prompt}
+
+=== AI STREAMING RESPONSE ===
+`
+            appendFileSync(logFile, initialLog)
 
             const stream = await openai.chat.completions.create({
                 model: model,
                 messages,
                 stream: true,
-                stream_options: { include_usage: true }
+                ...(streamUsage ? { stream_options: { include_usage: true } } : {})
             })
 
             let lastLogTime = Date.now()
@@ -146,6 +174,11 @@ export const TranslationService = {
                 const content = part.choices[0]?.delta?.content || ''
                 fullContent += content
                 buffer += content
+
+                // 实时写入日志文件
+                if (content) {
+                    appendFileSync(logFile, content)
+                }
 
                 if (Date.now() - lastLogTime > 2000 && fullContent.length > 0) {
                     console.log(`[Stream] Task ${taskId} chunk ${chunkIndex} received ${fullContent.length} bytes...`)
@@ -174,26 +207,36 @@ export const TranslationService = {
                 }
             }
 
+            // 写入结束日志
+            appendFileSync(logFile, `\n\n=== SUMMARY ===
+Tokens: ${usage.total_tokens} (P: ${usage.prompt_tokens}, C: ${usage.completion_tokens})
+End Time: ${new Date().toISOString()}
+`)
+
             console.log(`[Stream] Task ${taskId} chunk ${chunkIndex} complete, total ${fullContent.length} bytes, tokens: ${usage.total_tokens} (prompt: ${usage.prompt_tokens}, completion: ${usage.completion_tokens})`)
 
             if (taskId) {
                 try {
                     const db = useDb()
-                    db.prepare('INSERT INTO task_responses (task_id, chunk_index, model, raw_request, raw_response, prompt_tokens, completion_tokens, total_tokens) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+                    // 注意：这里不再存储 raw_request 和 raw_response，只保留 token 统计
+                    db.prepare('INSERT INTO task_responses (task_id, chunk_index, model, prompt_tokens, completion_tokens, total_tokens) VALUES (?, ?, ?, ?, ?, ?)').run(
                         taskId,
                         chunkIndex ?? 0,
                         model,
-                        rawRequest,
-                        fullContent,
                         usage.prompt_tokens,
                         usage.completion_tokens,
                         usage.total_tokens
                     )
                 } catch (dbErr) {
-                    console.error('[DB] Failed to save raw AI response:', dbErr)
+                    console.error('[DB] Failed to save token stats:', dbErr)
                 }
             }
         } catch (e: any) {
+            const errorLog = `\n\n=== ERROR ===\n${e.message}\n${e.stack || ''}`
+            try {
+                appendFileSync(logFile, errorLog)
+            } catch { /* ignore */ }
+
             console.error('\n' + '!'.repeat(20) + ' 流式 API 请求失败 ' + '!'.repeat(20))
             console.error(`[DEBUG] Model: ${model}`)
             console.error(`[DEBUG] Chunk size: ${chunk.length} entries`)
@@ -211,12 +254,12 @@ export const TranslationService = {
             if (fullContent.length > 0) {
                 console.warn(`[Parser] 原始内容前200字符: ${fullContent.substring(0, 200)}`)
             }
+            throw new Error(`解析失败: AI 返回内容为空或格式错误 (Length: ${fullContent.length})`)
         } else if (translatedMap.size !== chunk.length) {
-            console.warn(`[Parser] 警告: 翻译条目数 (${translatedMap.size}) 与原始条目数 (${chunk.length}) 不一致`)
             const missingIds = chunk.map(e => String(e.id)).filter(id => !translatedMap.has(id))
-            if (missingIds.length > 0 && missingIds.length <= 20) {
-                console.warn(`[Parser] 缺失的条目ID: ${missingIds.join(', ')}`)
-            }
+            const msg = `翻译条目不完整 (AI返回 ${translatedMap.size}/${chunk.length})。缺失 ID: ${missingIds.slice(0, 10).join(', ')}${missingIds.length > 10 ? '...' : ''}`
+            console.warn(`[Parser] ${msg}`)
+            throw new Error(msg)
         }
 
         const result = chunk.map((entry) => {

@@ -55,6 +55,8 @@ export interface AppConfig {
   concurrency: number          // 并发数
   maxRetries: number           // 最大重试次数
   glossary: Record<string, string>  // 术语表
+  streamUsage?: boolean        // 是否开启流式 Token 统计
+  logRetentionDays?: number    // AI 日志保留天数
 }
 
 /** 文件节点 (用于文件浏览器) */

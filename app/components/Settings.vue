@@ -79,13 +79,27 @@
       </UFormField>
     </div>
 
-    <div class="grid grid-cols-2 gap-4">
-      <UFormField label="分块大小 (Token)" description="较小的值可防止 AI 输出被截断。">
+    <div class="grid grid-cols-4 gap-4 items-stretch">
+      <UFormField label="分块大小 (Token)" description="较小的值可防止 AI 输出被截断。" class="flex flex-col h-full" :ui="{ container: 'mt-auto' }">
         <UInputNumber v-model="config.chunkSize" :min="100" :max="4000" :step="100" class="w-full" />
       </UFormField>
-      <UFormField label="并发任务数" description="同时进行的翻译请求数量。">
+      <UFormField label="并发任务数" description="同时进行的翻译请求数量。" class="flex flex-col h-full" :ui="{ container: 'mt-auto' }">
         <UInputNumber v-model="config.concurrency" :min="1" :max="10" class="w-full" />
       </UFormField>
+      <UFormField label="最大重试次数" description="翻译失败或漏译时自动重跑次数。" class="flex flex-col h-full" :ui="{ container: 'mt-auto' }">
+        <UInputNumber v-model="config.maxRetries" :min="0" :max="5" class="w-full" />
+      </UFormField>
+      <UFormField label="日志保留天数" description="AI 日志在 ai-logs 中的保留天数。" class="flex flex-col h-full" :ui="{ container: 'mt-auto' }">
+        <UInputNumber v-model="config.logRetentionDays" :min="1" :max="30" class="w-full" />
+      </UFormField>
+    </div>
+
+    <div class="p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+      <div class="space-y-0.5">
+        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">流式统计 (Stream Usage)</label>
+        <p class="text-[11px] text-gray-500 dark:text-gray-400">实时统计 Token 消耗。部分第三方 API 可能不兼容导致报错，若遇到“0字节/解析失败”建议关闭。</p>
+      </div>
+      <UToggle v-model="config.streamUsage" />
     </div>
 
     <div class="flex justify-end pt-4 border-t dark:border-gray-800 gap-3">
@@ -215,6 +229,8 @@ const config = ref(data.value || {})
 if (config.value) {
   if (config.value.chunkSize) config.value.chunkSize = Number(config.value.chunkSize)
   if (config.value.concurrency) config.value.concurrency = Number(config.value.concurrency)
+  if (config.value.maxRetries) config.value.maxRetries = Number(config.value.maxRetries)
+  if (config.value.logRetentionDays) config.value.logRetentionDays = Number(config.value.logRetentionDays)
 }
 const pending = ref(false)
 const toast = useToast()
