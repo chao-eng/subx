@@ -96,7 +96,7 @@ async function translateChunkWithRetry(
 
     // 检查是否还有遗漏
     if (remainingEntries.length > 0) {
-        console.warn(`[Retry] Task ${taskId} chunk ${chunkIndex}: 在 ${maxRetries} 次重试后仍有 ${remainingEntries.length} 条翻译缺失`)
+        console.warn(`[Task] Task ${taskId} chunk ${chunkIndex}: 在 ${maxRetries} 次重试后仍有 ${remainingEntries.length} 条翻译缺失，将保留原文继续任务。`)
     }
 
     // 按照原始顺序组装结果
