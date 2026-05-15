@@ -39,7 +39,7 @@ RUN apk del .build-deps
 FROM node:22-alpine AS runtime
 
 # 安装运行时必需的库：SQLite 共享库以及视频处理必备的 ffmpeg
-RUN apk add --no-cache curl libc6-compat sqlite-libs ffmpeg && \
+RUN apk add --no-cache curl libc6-compat sqlite-libs ffmpeg tzdata && \
     addgroup -g 1001 -S nodejs && adduser -S nuxt -u 1001 && \
     mkdir -p /media /app/db /app/temp && \
     chown -R nuxt:nodejs /media /app/db /app/temp
@@ -53,8 +53,10 @@ COPY --chown=nuxt:nodejs package.json ./
 USER nuxt
 EXPOSE 3000
 
-ENV NODE_ENV=production
-ENV VIDEO_DIR=/media
-ENV DB_PATH=/app/db/subx.db
+# 默认时区设为亚洲/上海，用户可以通过 -e TZ=... 覆盖
+ENV TZ=Asia/Shanghai \
+    NODE_ENV=production \
+    VIDEO_DIR=/media \
+    DB_PATH=/app/db/subx.db
 
 CMD ["node", ".output/server/index.mjs"]
