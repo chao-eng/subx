@@ -55,13 +55,13 @@ function parseStreamedTranslations(fullContent: string): Map<string, string> {
         if (lines.length < 2) {
             // 尝试处理单行格式，例如 "121. 翻译内容" 或 "121: 翻译内容"
             const singleLineMatch = block.trim().match(/^(\d+)[.:：\s]+(.+)$/)
-            if (singleLineMatch) {
+            if (singleLineMatch && singleLineMatch[1] && singleLineMatch[2]) {
                 result.set(singleLineMatch[1], singleLineMatch[2].trim())
             }
             continue
         }
 
-        let idLine = lines[0]?.trim()
+        let idLine = lines[0]?.trim() || ''
         // 去除可能的序号后缀，如 "121." -> "121"
         idLine = idLine.replace(/[.:：]$/, '')
         
