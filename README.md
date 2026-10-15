@@ -1,3 +1,9 @@
+> [!IMPORTANT]
+> **⚠️ 项目已停止更新**
+>
+> 本项目的翻译功能已被 [`bujic-movie`](https://github.com/chao-eng/bujic-movie) + MCP + Agent 取代，项目不再更新。
+> 新方案请访问：https://github.com/chao-eng/bujic-movie
+
 # SubX
 
 SubX 是一款专为本地/私有云环境设计的 **AI 自动化视频字幕提取与翻译工具**。
